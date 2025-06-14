@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import AudioToolbox
+import UIKit
 
 class TimerItem: ObservableObject, Identifiable {
     let id = UUID()
@@ -163,66 +164,119 @@ struct AddTimerView: View {
         NavigationView {
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Nom").foregroundColor(.white).font(.caption)
-                        TextField("Fonction", text: $name)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color(white: 0.1))
-                            .cornerRadius(8)
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Durée").foregroundColor(.white).font(.caption)
-                        GeometryReader { geometry in
-                            let pickerWidth = geometry.size.width / 3
-                            HStack(spacing: 0) {
-                                Picker("Heures", selection: $hours) {
-                                    ForEach(0..<24, id: \.self) { value in
-                                        Text("\(value) h").tag(value)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(width: pickerWidth, height: 150)
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("NOM").foregroundColor(.white)
+                    TextField("Timer", text: $name)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .foregroundColor(.white)
 
-                                Picker("Minutes", selection: $minutes) {
-                                    ForEach(0..<60, id: \.self) { value in
-                                        Text("\(value) m").tag(value)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(width: pickerWidth, height: 150)
+                    Text("DURÉE").foregroundColor(.white)
+                        .font(.caption)
 
-                                Picker("Secondes", selection: $seconds) {
-                                    ForEach(0..<60, id: \.self) { value in
-                                        Text("\(value) s").tag(value)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(width: pickerWidth, height: 150)
-                            }
+                    CountDownPicker(duration: Binding(
+                        get: { TimeInterval(hours * 3600 + minutes * 60 + seconds) },
+                        set: {
+                            let d = Int($0)
+                            hours = d / 3600
+                            minutes = (d % 3600) / 60
+                            seconds = d % 60
                         }
-                        .frame(height: 150)
-                    }
+                    ))
+                    .frame(height: 150)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(8)
+
                     Spacer()
                 }
                 .padding()
             }
             .navigationTitle("Nouveau Timer")
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { isPresented = false }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ajouter") {
                         let total = TimeInterval(hours * 3600 + minutes * 60 + seconds)
-                        guard total > 0, !name.isEmpty else { return }
                         onAdd(name, total)
                         isPresented = false
                     }
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { isPresented = false }
-                }
             }
             .preferredColorScheme(.dark)
+        }
+    }
+}
+
+struct CountDownPicker: UIViewRepresentable {
+    @Binding var duration: TimeInterval
+
+    func makeUIView(context: Context) -> UIPickerView {
+        let picker = UIPickerView()
+        picker.dataSource = context.coordinator
+        picker.delegate = context.coordinator
+        let total = Int(duration)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        picker.selectRow(h, inComponent: 0, animated: false)
+        picker.selectRow(m, inComponent: 1, animated: false)
+        picker.selectRow(s, inComponent: 2, animated: false)
+        return picker
+    }
+
+    func updateUIView(_ uiView: UIPickerView, context: Context) {
+        let total = Int(duration)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if uiView.selectedRow(inComponent: 0) != h {
+            uiView.selectRow(h, inComponent: 0, animated: false)
+        }
+        if uiView.selectedRow(inComponent: 1) != m {
+            uiView.selectRow(m, inComponent: 1, animated: false)
+        }
+        if uiView.selectedRow(inComponent: 2) != s {
+            uiView.selectRow(s, inComponent: 2, animated: false)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(duration: $duration)
+    }
+
+    class Coordinator: NSObject, UIPickerViewDataSource, UIPickerViewDelegate {
+        var duration: Binding<TimeInterval>
+        init(duration: Binding<TimeInterval>) {
+            self.duration = duration
+        }
+
+        func numberOfComponents(in pickerView: UIPickerView) -> Int { 3 }
+        func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+            switch component {
+            case 0: return 24
+            case 1: return 60
+            default: return 60
+            }
+        }
+
+        func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+            switch component {
+            case 0: return "\(row) h"
+            case 1: return "\(row) m"
+            default: return "\(row) s"
+            }
+        }
+
+        func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+            let h = pickerView.selectedRow(inComponent: 0)
+            let m = pickerView.selectedRow(inComponent: 1)
+            let s = pickerView.selectedRow(inComponent: 2)
+            duration.wrappedValue = TimeInterval(h * 3600 + m * 60 + s)
+        }
+
+        func pickerView(_ pickerView: UIPickerView, widthForComponent component: Int) -> CGFloat {
+            pickerView.bounds.width / 3.0
         }
     }
 }
