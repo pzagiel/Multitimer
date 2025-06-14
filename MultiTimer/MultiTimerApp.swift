@@ -7,19 +7,15 @@ class TimerItem: ObservableObject, Identifiable {
     @Published var name: String
     let duration: TimeInterval
     @Published var remaining: TimeInterval
-    @Published var isRunning: Bool = false {
-        didSet { print("[TimerItem] isRunning toggled for \(name): \(isRunning)") }
-    }
+    @Published var isRunning: Bool = false
 
     init(name: String, duration: TimeInterval) {
         self.name = name
         self.duration = duration
         self.remaining = duration
-        print("[TimerItem] Initialized: \(name), duration: \(duration)")
     }
 
     func reset() {
-        print("[TimerItem] Reset called for \(name)")
         remaining = duration
         isRunning = false
     }
@@ -30,7 +26,6 @@ class TimerViewModel: ObservableObject {
     private var cancellable: AnyCancellable?
 
     init() {
-        print("[TimerViewModel] Initialized with \(timers.count) user-defined timers")
         cancellable = Timer
             .publish(every: 1, on: .main, in: .common)
             .autoconnect()
@@ -55,7 +50,6 @@ class TimerViewModel: ObservableObject {
     func addTimer(name: String, duration: TimeInterval) {
         let new = TimerItem(name: name, duration: duration)
         timers.append(new)
-        print("[TimerViewModel] Added new timer: \(name), \(duration)s")
     }
 }
 
@@ -65,29 +59,28 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(viewModel.timers) { item in
-                    TimerRow(timerItem: item)
-                        .padding(.vertical, 4)
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
+                List {
+                    ForEach(viewModel.timers) { item in
+                        TimerRow(timerItem: item)
+                            .listRowBackground(Color.black)
+                    }
+                    .onDelete { indices in
+                        viewModel.timers.remove(atOffsets: indices)
+                    }
                 }
-                .onDelete { indices in
-                    viewModel.timers.remove(atOffsets: indices)
-                }
+                .listStyle(PlainListStyle())
             }
-            .listStyle(PlainListStyle())
             .navigationTitle("Multi-Minuterie")
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     EditButton()
-                    Button("Reset All") {
-                        viewModel.resetAll()
-                    }
+                    Button("Reset All") { viewModel.resetAll() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingAddSheet = true
-                    }) {
-                        Image(systemName: "plus")
+                    Button(action: { showingAddSheet = true }) {
+                        Image(systemName: "plus").foregroundColor(.white)
                     }
                 }
             }
@@ -97,6 +90,7 @@ struct ContentView: View {
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -104,9 +98,10 @@ struct TimerRow: View {
     @ObservedObject var timerItem: TimerItem
 
     private var timeString: String {
-        let min = Int(timerItem.remaining) / 60
-        let sec = Int(timerItem.remaining) % 60
-        return String(format: "%02d:%02d", min, sec)
+        let h = Int(timerItem.remaining) / 3600
+        let m = (Int(timerItem.remaining) % 3600) / 60
+        let s = Int(timerItem.remaining) % 60
+        return String(format: "%02d:%02d:%02d", h, m, s)
     }
 
     private var progressValue: Double {
@@ -115,7 +110,7 @@ struct TimerRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(timerItem.name)
                     .font(.headline)
@@ -128,7 +123,7 @@ struct TimerRow: View {
             ProgressView(value: progressValue)
                 .scaleEffect(y: 2)
                 .accentColor(.green)
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 Button(action: { timerItem.isRunning.toggle() }) {
                     Text(timerItem.isRunning ? "Pause" : "Start")
                         .foregroundColor(.black)
@@ -148,52 +143,87 @@ struct TimerRow: View {
                         .cornerRadius(8)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-
-                Spacer()
             }
         }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .padding()
+        .background(Color.black)
+        .cornerRadius(10)
     }
 }
 
 struct AddTimerView: View {
     @Binding var isPresented: Bool
     @State private var name: String = "Timer"
-    @State private var durationText: String = "60"
+    @State private var hours = 0
+    @State private var minutes = 0
+    @State private var seconds = 0
     var onAdd: (String, TimeInterval) -> Void
 
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Nom").foregroundColor(.white)) {
-                    TextField("Fonction", text: $name)
-                        .foregroundColor(.white)
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Nom").foregroundColor(.white).font(.caption)
+                        TextField("Fonction", text: $name)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color(white: 0.1))
+                            .cornerRadius(8)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Durée").foregroundColor(.white).font(.caption)
+                        GeometryReader { geometry in
+                            let pickerWidth = geometry.size.width / 3
+                            HStack(spacing: 0) {
+                                Picker("Heures", selection: $hours) {
+                                    ForEach(0..<24, id: \.self) { value in
+                                        Text("\(value) h").tag(value)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: pickerWidth, height: 150)
+
+                                Picker("Minutes", selection: $minutes) {
+                                    ForEach(0..<60, id: \.self) { value in
+                                        Text("\(value) m").tag(value)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: pickerWidth, height: 150)
+
+                                Picker("Secondes", selection: $seconds) {
+                                    ForEach(0..<60, id: \.self) { value in
+                                        Text("\(value) s").tag(value)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: pickerWidth, height: 150)
+                            }
+                        }
+                        .frame(height: 150)
+                    }
+                    Spacer()
                 }
-                Section(header: Text("Durée (secondes)").foregroundColor(.white)) {
-                    TextField("e.g. 60", text: $durationText)
-                        .keyboardType(.numberPad)
-                        .foregroundColor(.white)
-                }
+                .padding()
             }
-            .background(Color.black)
             .navigationTitle("Nouveau Timer")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ajouter") {
-                        if let secs = TimeInterval(durationText), !name.isEmpty {
-                            onAdd(name, secs)
-                            isPresented = false
-                        }
+                        let total = TimeInterval(hours * 3600 + minutes * 60 + seconds)
+                        guard total > 0, !name.isEmpty else { return }
+                        onAdd(name, total)
+                        isPresented = false
                     }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { isPresented = false }
                 }
             }
+            .preferredColorScheme(.dark)
         }
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -202,7 +232,6 @@ struct MultiTimerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.dark)
         }
     }
 }
