@@ -4,72 +4,64 @@ import AudioToolbox
 
 class TimerItem: ObservableObject, Identifiable {
     let id = UUID()
-    let name: String
+    @Published var name: String
     let duration: TimeInterval
     @Published var remaining: TimeInterval
     @Published var isRunning: Bool = false {
-        didSet {
-            print("[TimerItem] isRunning toggled for \(name) (ID: \(id)): \(isRunning)")
-        }
+        didSet { print("[TimerItem] isRunning toggled for \(name): \(isRunning)") }
     }
 
     init(name: String, duration: TimeInterval) {
         self.name = name
         self.duration = duration
         self.remaining = duration
-        print("[TimerItem] Initialized: \(name) (ID: \(id)), duration: \(duration)")
+        print("[TimerItem] Initialized: \(name), duration: \(duration)")
     }
 
     func reset() {
-        print("[TimerItem] Reset called for \(name) (ID: \(id))")
+        print("[TimerItem] Reset called for \(name)")
         remaining = duration
         isRunning = false
     }
 }
 
 class TimerViewModel: ObservableObject {
-    @Published var timers: [TimerItem]
+    @Published var timers: [TimerItem] = []
     private var cancellable: AnyCancellable?
 
     init() {
-        timers = [
-            TimerItem(name: "Test 10s", duration: 10),
-            TimerItem(name: "Test 5s", duration: 5),
-            TimerItem(name: "Thé vert", duration: 180)
-        ]
-        print("[TimerViewModel] Initialized with \(timers.count) timers")
+        print("[TimerViewModel] Initialized with \(timers.count) user-defined timers")
         cancellable = Timer
             .publish(every: 1, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] _ in
-                self?.tick()
-            }
+            .sink { [weak self] _ in self?.tick() }
     }
 
     private func tick() {
-        print("[TimerViewModel] Tick")
-        for item in timers {
-            print("  - Checking \(item.name): remaining=\(item.remaining), isRunning=\(item.isRunning)")
-            guard item.isRunning else { continue }
+        for item in timers where item.isRunning {
             if item.remaining > 0 {
                 item.remaining -= 1
-                print("    > Decremented \(item.name): now \(item.remaining)")
             } else {
                 item.isRunning = false
-                print("    ! Timer finished for \(item.name)")
                 AudioServicesPlaySystemSound(1005)
             }
         }
     }
 
     func resetAll() {
-        print("[TimerViewModel] resetAll called")
         timers.forEach { $0.reset() }
+    }
+
+    func addTimer(name: String, duration: TimeInterval) {
+        let new = TimerItem(name: name, duration: duration)
+        timers.append(new)
+        print("[TimerViewModel] Added new timer: \(name), \(duration)s")
     }
 }
 
 struct ContentView: View {
     @StateObject private var viewModel = TimerViewModel()
+    @State private var showingAddSheet = false
 
     var body: some View {
         NavigationView {
@@ -78,12 +70,25 @@ struct ContentView: View {
                     TimerRow(timerItem: item)
                         .padding(.vertical, 4)
                 }
+                .onDelete { indices in
+                    viewModel.timers.remove(atOffsets: indices)
+                }
             }
             .listStyle(PlainListStyle())
             .navigationTitle("Multi-Minuterie")
             .toolbar {
-                Button("Reset All") {
-                    viewModel.resetAll()
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Reset All") { viewModel.resetAll() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingAddSheet = true }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddSheet) {
+                AddTimerView(isPresented: $showingAddSheet) { name, duration in
+                    viewModel.addTimer(name: name, duration: duration)
                 }
             }
         }
@@ -117,10 +122,7 @@ struct TimerRow: View {
             ProgressView(value: progressValue)
                 .scaleEffect(y: 2)
             HStack(spacing: 12) {
-                Button(action: {
-                    print("[TimerRow] Button tapped for \(timerItem.name): current isRunning=\(timerItem.isRunning)")
-                    timerItem.isRunning.toggle()
-                }) {
+                Button(action: { timerItem.isRunning.toggle() }) {
                     Text(timerItem.isRunning ? "Pause" : "Start")
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -130,10 +132,7 @@ struct TimerRow: View {
                 }
                 .buttonStyle(BorderlessButtonStyle())
 
-                Button(action: {
-                    print("[TimerRow] Reset button tapped for \(timerItem.name)")
-                    timerItem.reset()
-                }) {
+                Button(action: { timerItem.reset() }) {
                     Text("Reset")
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -152,6 +151,41 @@ struct TimerRow: View {
     }
 }
 
+struct AddTimerView: View {
+    @Binding var isPresented: Bool
+    @State private var name: String = ""
+    @State private var durationText: String = ""
+    var onAdd: (String, TimeInterval) -> Void
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Nom")) {
+                    TextField("Fonction", text: $name)
+                }
+                Section(header: Text("Durée (secondes)")) {
+                    TextField("e.g. 60", text: $durationText)
+                        .keyboardType(.numberPad)
+                }
+            }
+            .navigationTitle("Nouveau Timer")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Ajouter") {
+                        if let secs = TimeInterval(durationText), !name.isEmpty {
+                            onAdd(name, secs)
+                            isPresented = false
+                        }
+                    }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { isPresented = false }
+                }
+            }
+        }
+    }
+}
+
 @main
 struct MultiTimerApp: App {
     var body: some Scene {
@@ -160,4 +194,3 @@ struct MultiTimerApp: App {
         }
     }
 }
-
