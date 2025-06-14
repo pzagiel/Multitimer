@@ -77,11 +77,16 @@ struct ContentView: View {
             .listStyle(PlainListStyle())
             .navigationTitle("Multi-Minuterie")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Reset All") { viewModel.resetAll() }
+                ToolbarItemGroup(placement: .navigationBarLeading) {
+                    EditButton()
+                    Button("Reset All") {
+                        viewModel.resetAll()
+                    }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddSheet = true }) {
+                    Button(action: {
+                        showingAddSheet = true
+                    }) {
                         Image(systemName: "plus")
                     }
                 }
@@ -153,8 +158,8 @@ struct TimerRow: View {
 
 struct AddTimerView: View {
     @Binding var isPresented: Bool
-    @State private var name: String = ""
-    @State private var durationText: String = ""
+    @State private var name: String = "Timer"
+    @State private var durationText: String = "60"
     var onAdd: (String, TimeInterval) -> Void
 
     var body: some View {
@@ -194,3 +199,4 @@ struct MultiTimerApp: App {
         }
     }
 }
+
