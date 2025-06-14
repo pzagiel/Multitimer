@@ -119,20 +119,22 @@ struct TimerRow: View {
             HStack {
                 Text(timerItem.name)
                     .font(.headline)
+                    .foregroundColor(.white)
                 Spacer()
                 Text(timeString)
                     .font(.title2)
-                    .foregroundColor(timerItem.isRunning ? .blue : .gray)
+                    .foregroundColor(timerItem.isRunning ? .green : .gray)
             }
             ProgressView(value: progressValue)
                 .scaleEffect(y: 2)
+                .accentColor(.green)
             HStack(spacing: 12) {
                 Button(action: { timerItem.isRunning.toggle() }) {
                     Text(timerItem.isRunning ? "Pause" : "Start")
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(timerItem.isRunning ? Color.orange : Color.green)
+                        .background(timerItem.isRunning ? Color.yellow : Color.green)
                         .cornerRadius(8)
                 }
                 .buttonStyle(BorderlessButtonStyle())
@@ -151,7 +153,7 @@ struct TimerRow: View {
             }
         }
         .padding(8)
-        .background(Color(.secondarySystemBackground))
+        .background(Color(.systemGray6))
         .cornerRadius(12)
     }
 }
@@ -165,14 +167,17 @@ struct AddTimerView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Nom")) {
+                Section(header: Text("Nom").foregroundColor(.white)) {
                     TextField("Fonction", text: $name)
+                        .foregroundColor(.white)
                 }
-                Section(header: Text("Durée (secondes)")) {
+                Section(header: Text("Durée (secondes)").foregroundColor(.white)) {
                     TextField("e.g. 60", text: $durationText)
                         .keyboardType(.numberPad)
+                        .foregroundColor(.white)
                 }
             }
+            .background(Color.black)
             .navigationTitle("Nouveau Timer")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -188,6 +193,7 @@ struct AddTimerView: View {
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -196,6 +202,7 @@ struct MultiTimerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.dark)
         }
     }
 }
