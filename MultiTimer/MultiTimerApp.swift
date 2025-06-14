@@ -1,14 +1,34 @@
 import SwiftUI
 import Combine
+import UserNotifications
 import AudioToolbox
 import UIKit
 
+@main
+struct MultiTimerApp: App {
+    init() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification permission error: \(error)")
+            }
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .preferredColorScheme(.dark)
+        }
+    }
+}
+
 class TimerItem: ObservableObject, Identifiable {
-    let id = UUID()
+    let id = UUID().uuidString
     @Published var name: String
     let duration: TimeInterval
-    @Published var remaining: TimeInterval
+    @Published private(set) var remaining: TimeInterval
     @Published var isRunning: Bool = false
+    private var endDate: Date?
 
     init(name: String, duration: TimeInterval) {
         self.name = name
@@ -16,9 +36,59 @@ class TimerItem: ObservableObject, Identifiable {
         self.remaining = duration
     }
 
-    func reset() {
-        remaining = duration
+    func start() {
+        guard !isRunning else { return }
+        isRunning = true
+        endDate = Date().addingTimeInterval(remaining)
+        scheduleNotification()
+    }
+
+    func pause() {
+        guard isRunning, let end = endDate else { return }
+        remaining = max(end.timeIntervalSinceNow, 0)
         isRunning = false
+        cancelNotification()
+        endDate = nil
+    }
+
+    func reset() {
+        isRunning = false
+        remaining = duration
+        endDate = nil
+        cancelNotification()
+    }
+
+    func tick() {
+        guard isRunning, let end = endDate else { return }
+        let newRemaining = end.timeIntervalSinceNow
+        if newRemaining <= 0 {
+            remaining = 0
+            isRunning = false
+            AudioServicesPlaySystemSound(1005)
+        } else {
+            remaining = newRemaining
+        }
+    }
+
+    private func scheduleNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = name
+        content.body = "Le timer est terminé !"
+        content.sound = .default
+
+        guard let end = endDate else { return }
+        let interval = max(end.timeIntervalSinceNow, 0)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Notification scheduling error: \(error)")
+            }
+        }
+    }
+
+    private func cancelNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
     }
 }
 
@@ -30,18 +100,9 @@ class TimerViewModel: ObservableObject {
         cancellable = Timer
             .publish(every: 1, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] _ in self?.tick() }
-    }
-
-    private func tick() {
-        for item in timers where item.isRunning {
-            if item.remaining > 0 {
-                item.remaining -= 1
-            } else {
-                item.isRunning = false
-                AudioServicesPlaySystemSound(1005)
+            .sink { [weak self] _ in
+                self?.timers.forEach { $0.tick() }
             }
-        }
     }
 
     func resetAll() {
@@ -91,7 +152,6 @@ struct ContentView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -125,7 +185,13 @@ struct TimerRow: View {
                 .scaleEffect(y: 2)
                 .accentColor(.green)
             HStack(spacing: 16) {
-                Button(action: { timerItem.isRunning.toggle() }) {
+                Button(action: {
+                    if timerItem.isRunning {
+                        timerItem.pause()
+                    } else {
+                        timerItem.start()
+                    }
+                }) {
                     Text(timerItem.isRunning ? "Pause" : "Start")
                         .foregroundColor(.black)
                         .padding(.horizontal, 16)
@@ -176,10 +242,10 @@ struct AddTimerView: View {
                     CountDownPicker(duration: Binding(
                         get: { TimeInterval(hours * 3600 + minutes * 60 + seconds) },
                         set: {
-                            let d = Int($0)
-                            hours = d / 3600
-                            minutes = (d % 3600) / 60
-                            seconds = d % 60
+                            let total = Int($0)
+                            hours = total / 3600
+                            minutes = (total % 3600) / 60
+                            seconds = total % 60
                         }
                     ))
                     .frame(height: 150)
@@ -203,7 +269,6 @@ struct AddTimerView: View {
                     }
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 }
@@ -277,15 +342,6 @@ struct CountDownPicker: UIViewRepresentable {
 
         func pickerView(_ pickerView: UIPickerView, widthForComponent component: Int) -> CGFloat {
             pickerView.bounds.width / 3.0
-        }
-    }
-}
-
-@main
-struct MultiTimerApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
         }
     }
 }
