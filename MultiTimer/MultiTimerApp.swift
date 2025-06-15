@@ -257,6 +257,8 @@ struct AddTimerView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
+                            .autocapitalization(.words)
+                            .submitLabel(.done)
                     }
                     .padding()
                     .background(Color.white.opacity(0.1))
