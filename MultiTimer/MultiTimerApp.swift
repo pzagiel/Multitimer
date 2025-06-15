@@ -250,8 +250,9 @@ struct AddTimerView: View {
                         }
                     ))
                     HStack {
-                        Text("NOM")
+                        Text("Name of timer")
                             .foregroundColor(.white)
+                            .font(.headline)
                         TextField("Timer", text: $name)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .foregroundColor(.white)
