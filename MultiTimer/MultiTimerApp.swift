@@ -3,6 +3,7 @@ import Combine
 import UserNotifications
 import AudioToolbox
 import UIKit
+import AVFoundation
 
 @main
 struct MultiTimerApp: App {
@@ -64,10 +65,17 @@ class TimerItem: ObservableObject, Identifiable {
         if newRemaining <= 0 {
             remaining = 0
             isRunning = false
-            AudioServicesPlaySystemSound(1005)
+            //AudioServicesPlaySystemSound(1005)
+            speak(name)
         } else {
             remaining = newRemaining
         }
+    }
+    private func speak(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "fr-FR") // ou "en-US", selon le nom du timer
+        let synthesizer = AVSpeechSynthesizer()
+        synthesizer.speak(utterance)
     }
 
     private func scheduleNotification() {
@@ -236,8 +244,8 @@ struct AddTimerView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .foregroundColor(.white)
 
-                    Text("DURÉE").foregroundColor(.white)
-                        .font(.caption)
+//                    Text("DURÉE").foregroundColor(.white)
+//                        .font(.caption)
 
                     CountDownPicker(duration: Binding(
                         get: { TimeInterval(hours * 3600 + minutes * 60 + seconds) },
@@ -256,13 +264,13 @@ struct AddTimerView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Nouveau Timer")
+            .navigationTitle("New Timer")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { isPresented = false }
+                    Button("Cancel") { isPresented = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Ajouter") {
+                    Button("Add") {
                         let total = TimeInterval(hours * 3600 + minutes * 60 + seconds)
                         onAdd(name, total)
                         isPresented = false
