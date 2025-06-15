@@ -83,6 +83,7 @@ class TimerItem: ObservableObject, Identifiable {
         content.title = name
         content.body = "Le timer est terminé !"
         content.sound = .default
+        //content.sound = UNNotificationSound(named: UNNotificationSoundName("cafe_pret.caf"))
 
         guard let end = endDate else { return }
         let interval = max(end.timeIntervalSinceNow, 0)
@@ -239,14 +240,6 @@ struct AddTimerView: View {
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("NOM").foregroundColor(.white)
-                    TextField("Timer", text: $name)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .foregroundColor(.white)
-
-//                    Text("DURÉE").foregroundColor(.white)
-//                        .font(.caption)
-
                     CountDownPicker(duration: Binding(
                         get: { TimeInterval(hours * 3600 + minutes * 60 + seconds) },
                         set: {
@@ -256,9 +249,26 @@ struct AddTimerView: View {
                             seconds = total % 60
                         }
                     ))
-                    .frame(height: 150)
+                    HStack {
+                        Text("NOM")
+                            .foregroundColor(.white)
+                        TextField("Timer", text: $name)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding()
                     .background(Color.white.opacity(0.1))
                     .cornerRadius(8)
+
+
+//                    Text("DURÉE").foregroundColor(.white)
+//                        .font(.caption)
+
+                   // second frame inutile
+//                    .frame(height: 150)
+//                    .background(Color.white.opacity(0.1))
+//                    .cornerRadius(8)
 
                     Spacer()
                 }
