@@ -143,7 +143,7 @@ struct ContentView: View {
                 }
                 .listStyle(PlainListStyle())
             }
-            .navigationTitle("Multi-Minuterie")
+            .navigationTitle("Timer")
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     EditButton()
