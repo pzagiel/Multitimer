@@ -168,10 +168,16 @@ struct TimerRow: View {
     @ObservedObject var timerItem: TimerItem
 
     private var timeString: String {
-        let h = Int(timerItem.remaining) / 3600
-        let m = (Int(timerItem.remaining) % 3600) / 60
-        let s = Int(timerItem.remaining) % 60
-        return String(format: "%02d:%02d:%02d", h, m, s)
+        let total = Int(timerItem.remaining)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+
+        if h > 0 {
+            return String(format: "%02d:%02d:%02d", h, m, s)
+        } else {
+            return String(format: "%02d:%02d", m, s)
+        }
     }
 
     private var progressValue: Double {
@@ -180,52 +186,48 @@ struct TimerRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(timerItem.name)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Spacer()
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(timeString)
-                    .font(.title2)
-                    .foregroundColor(timerItem.isRunning ? .green : .gray)
+                    .font(.system(size: 40, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                Text(timerItem.name)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
             }
-            ProgressView(value: progressValue)
-                .scaleEffect(y: 2)
-                .accentColor(.green)
-            HStack(spacing: 16) {
-                Button(action: {
-                    if timerItem.isRunning {
-                        timerItem.pause()
-                    } else {
-                        timerItem.start()
-                    }
-                }) {
-                    Text(timerItem.isRunning ? "Pause" : "Start")
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(timerItem.isRunning ? Color.yellow : Color.green)
-                        .cornerRadius(8)
+            Spacer()
+            Button(action: {
+                if timerItem.isRunning {
+                    timerItem.pause()
+                } else {
+                    timerItem.start()
                 }
-                .buttonStyle(BorderlessButtonStyle())
-
-                Button(action: { timerItem.reset() }) {
-                    Text("Reset")
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.red)
-                        .cornerRadius(8)
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(lineWidth: 4)
+                        .foregroundColor(Color.yellow.opacity(0.3))
+                        .overlay(
+                            Circle()
+                                .trim(from: 0, to: CGFloat(progressValue))
+                                .stroke(Color.yellow, lineWidth: 4)
+                                .rotationEffect(.degrees(-90))
+                        )
+                        .frame(width: 44, height: 44)
+                    Image(systemName: timerItem.isRunning ? "pause" : "play.fill")
+                        .foregroundColor(.yellow)
+                        .font(.system(size: 16, weight: .bold))
                 }
-                .buttonStyle(BorderlessButtonStyle())
             }
+            .buttonStyle(.plain)
         }
-        .padding()
-        .background(Color.black)
-        .cornerRadius(10)
+        .padding(.vertical, 12)
+        .padding(.horizontal)
+        .background(Color(white: 0.1))
+        .cornerRadius(12)
     }
 }
+
 
 struct AddTimerView: View {
     @Binding var isPresented: Bool
